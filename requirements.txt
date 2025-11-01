@@ -1,6 +1,12 @@
+streamlit
+yfinance
 pandas
-numpy
 matplotlib
 seaborn
+numpy
 scikit-learn
-yfinance
+prophet
+statsmodels
+feedparser
+requests
+plotly
