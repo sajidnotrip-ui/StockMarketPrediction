@@ -194,6 +194,8 @@ def get_data_safe(ticker, start, end):
             st.error("No data found. This may be because the symbol is incorrect, the company is delisted, or the dates are weekends/holidays.")
             return None
         df = df.reset_index()
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [col[0] for col in df.columns]
         return df
     except Exception as e:
         st.error(f"Yahoo Finance/API error: {e}")
@@ -255,39 +257,53 @@ if page == "Analysis":
         if df is not None and not df.empty:
             branch = branch_selector(ticker, "analysis-branch")
             display_company_info(ticker, branch)
+            
+            # --- Articles/news for this stock only ---
+            st.markdown(f'<h5 style="color:#27ae60;">Articles for {ticker}</h5>', unsafe_allow_html=True)
             rich_news_panel(ticker)
-            peer = peer_selector(ticker)
-            st.dataframe(df, use_container_width=True)
-            st.download_button("Download CSV", df.to_csv().encode(), file_name=f"{ticker}_stats.csv")
+
+            # --- Table with all metrics ---
+            st.caption(f"Table: Open, High, Low, Close, and Volume for {ticker}.")
+            st.dataframe(
+                df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']].rename(
+                    columns={col: f"{ticker} {col}" for col in ['Open', 'High', 'Low', 'Close', 'Volume']}
+                ),
+                use_container_width=True
+            )
+
+            # --- Closing price line plot ---
             fig1, ax1 = plt.subplots(figsize=(7, 3.9))
-            ax1.plot(df['Date'], df['Close'], label=f"{ticker} Close", linewidth=2.2)
-            peer_df = None
-            if peer:
-                peer_df = get_data_safe(peer, start, end)
-                if peer_df is not None and not peer_df.empty:
-                    ax1.plot(peer_df['Date'], peer_df['Close'], label=f"{peer} Close", color="#2196f3", linestyle="--", linewidth=2.1)
-            ax1.set_title(f'{ticker}{" vs "+peer if peer else ""} Closing Price')
+            ax1.plot(df['Date'], df['Close'], label=f"{ticker} Close", linewidth=2.2, color="#27ae60")
+            ax1.set_title(f"{ticker} Closing Price")
+            ax1.set_xlabel("Date")
+            ax1.set_ylabel("Closing Price")
             ax1.legend()
             st.pyplot(fig1)
+            
+            # --- Heatmap for Close prices ---
             plot_heatmap(df, 'Close')
+
+
 
 if page == "Prediction":
     st.header("🤖 ML-based Prediction")
     ticker = st.text_input("Stock Symbol", value="AAPL", key="pred")
     start = st.date_input("Start Date (Prediction)", value=date.today()-timedelta(days=365))
     end = st.date_input("End Date (Prediction)", value=date.today())
-    peer = peer_selector(ticker)
+    # (No peer/competitor/sector selector here!)
     if st.button("Run Prediction"):
         df = get_data_safe(ticker, start, end)
         if df is not None and len(df) > 30:
             branch = branch_selector(ticker, "prediction-branch")
             display_company_info(ticker, branch)
-            rich_news_panel(ticker)
+            # ---- Regression models ----
             features = df[['Open', 'High', 'Low', 'Volume']][:-1]
             targets = df['Close'][1:]
             split_idx = int(len(features) * 0.8)
             X_train, X_test = features[:split_idx], features[split_idx:]
             y_train, y_test = targets[:split_idx], targets[split_idx:]
+            date_test = df['Date'].iloc[split_idx+1:]
+
             st.subheader("Classic Regression Models")
             models = {
                 'Linear Regression': LinearRegression(),
@@ -298,6 +314,17 @@ if page == "Prediction":
                 model.fit(X_train, y_train)
                 y_pred = model.predict(X_test)
                 st.write(f"{name} MSE: {mean_squared_error(y_test, y_pred):.4f} | R2: {r2_score(y_test, y_pred):.4f}")
+                # --- Plot prediction vs actual ---
+                fig, ax = plt.subplots(figsize=(7, 2.5))
+                ax.plot(date_test, y_test, label="Actual", linewidth=2.2)
+                ax.plot(date_test, y_pred, label="Predicted", linestyle="--", linewidth=2)
+                ax.set_title(f"{name} | Predicted vs Actual Close")
+                ax.legend()
+                ax.set_xlabel("Date")
+                ax.set_ylabel("Close Price")
+                st.pyplot(fig)
+
+            # ---- ARIMA ----
             if sm is not None:
                 st.subheader("ARIMA Forecast")
                 close_series = df['Close']
@@ -306,9 +333,19 @@ if page == "Prediction":
                     model_arima = sm.tsa.ARIMA(close_series[:tlen], order=(5,1,0)).fit()
                     preds = model_arima.forecast(steps=len(close_series[tlen:]))
                     st.write(f"ARIMA MSE: {mean_squared_error(close_series[tlen:], preds):.4f}")
+                    # --- Plot ARIMA ---
+                    fig2, ax2 = plt.subplots(figsize=(7, 2.5))
+                    ax2.plot(df['Date'], close_series, label="Actual")
+                    ax2.plot(df['Date'][tlen:], preds, label="ARIMA Forecast", linestyle="--")
+                    ax2.set_title("ARIMA Forecast vs Actual")
+                    ax2.legend()
+                    ax2.set_xlabel("Date")
+                    ax2.set_ylabel("Close Price")
+                    st.pyplot(fig2)
                 except Exception as e:
                     st.write("ARIMA error:", e)
-            # ---- Prophet
+
+            # ---- Prophet ----
             if Prophet is not None:
                 st.subheader("Prophet Forecast")
                 try:
@@ -319,7 +356,13 @@ if page == "Prediction":
                     temp['y'] = pd.to_numeric(temp['y'], errors='coerce')
                     model = Prophet()
                     model.fit(temp)
-                    st.write("Prophet run successful.")
+                    period = 30
+                    future = model.make_future_dataframe(periods=period)
+                    forecast = model.predict(future)
+                    # Prophet plot (native)
+                    st.write(f"Prophet {period}-day forward forecast (blue line: forecast, black dots: actual).")
+                    fig3 = model.plot(forecast)
+                    st.pyplot(fig3)
                 except Exception as e:
                     st.write(f"Prophet error: {e}")
             else:
@@ -330,12 +373,36 @@ if page == "Viz":
     ticker = st.text_input("Which ticker?", value="AAPL", key="viz")
     start = st.date_input("Visualize from", value=date.today()-timedelta(days=365))
     end = st.date_input("To", value=date.today())
-    df = get_data_safe(ticker, start, end)
-    if df is not None and not df.empty:
-        st.subheader("Candlestick Chart")
-        plot_candlestick(df, f"{ticker} Candlestick Chart")
-        st.subheader("Sector/Peer Heatmap")
-        plot_heatmap(df, 'Close')
+    fetch = st.button("Fetch Data", key="vizfetch")
+
+    if fetch:
+        if not ticker or not start or not end:
+            st.warning("Please enter ticker and dates before fetching data.")
+        else:
+            df = get_data_safe(ticker, start, end)
+            
+
+            if df is not None and not df.empty:
+                branch = branch_selector(ticker, "viz-branch")
+                display_company_info(ticker, branch)
+                st.subheader("Candlestick Chart")
+                try:
+                    required_cols = ['Open', 'High', 'Low', 'Close', 'Date']
+                    # Check columns & nulls for safety
+                    if not all(col in df.columns for col in required_cols) or df[required_cols].isnull().any().any():
+                        st.warning("Data missing/incomplete for candlestick chart. Try another date range or symbol.")
+                    else:
+                        plot_candlestick(df, f"{ticker} Candlestick Chart")
+                except Exception as e:
+                    st.warning(f"Unable to display candlestick chart: {e}")
+                st.subheader("Sector/Peer Heatmap")
+                plot_heatmap(df, 'Close')
+            else:
+                st.info("No data available for this range—try different dates or symbol.")
+    else:
+        st.info("Set ticker and date, then click 'Fetch Data' to display visualizations.")
+
+
 
 if page == "Portfolio":
     st.header("Portfolio/Peer Comparison Widget")
@@ -398,10 +465,12 @@ if page == "Team":
     cols = st.columns(4)
     for i in range(4):
         with cols[i]:
+            # Only wrap the image in try/except; always show card
             try:
                 st.image(imgs[i], width=100, output_format='auto', caption=names[i])
             except Exception:
-                st.write("[Image missing]")
+                pass  # Just skip the image if missing
+            # Show the info card
             st.markdown(f"""
             <div style="background:linear-gradient(60deg,#202837,#28e17a44);border-radius:14px;padding:8px 2px;text-align:center;">
                 <b style="font-size:1.08rem;color:#28e17a">{names[i]}</b><br>
@@ -410,7 +479,6 @@ if page == "Team":
             </div>
             """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 
 
@@ -436,4 +504,11 @@ if page == "Contact":
             st.success("Thank you! Your feedback has been recorded.")
 
 st.markdown("---")
-st.markdown("**StellarStocks** | © 2025 Team VITS Data Science • All features robust and examiner ready.")
+st.markdown(
+    "<div style='color:#b7d7ec; font-size:1.09rem; text-align:center;'>"
+    "<b>StellarStocks</b> &copy; 2025 Team VITS Data Science &mdash; Developed for advanced, interactive stock analysis and forecasting with modern ML tools.<br>"
+    "For academic, analytical, and professional demonstration purposes.<br>"
+    "<span style='font-size:1rem'>Contact: <i>team.vits.ds@gmail.com</i></span>"
+    "</div>",
+    unsafe_allow_html=True
+)
