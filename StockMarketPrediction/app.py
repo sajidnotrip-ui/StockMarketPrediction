@@ -1,4 +1,7 @@
 import streamlit as st
+
+
+
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,6 +18,26 @@ from streamlit_lottie import st_lottie
 import requests
 import feedparser
 from urllib.parse import quote
+# Example: Personalize welcome/assistant
+if 'last_stocks' in st.session_state:
+    st.info(f"Hi again! Last time you analyzed: {', '.join(st.session_state['last_stocks'])}")
+# Then use st.session_state['last_metrics'] or ['last_years'] in your model/chart code!
+
+def ai_answer(question):
+    q = question.lower()
+    if "mse" in q:
+        return "MSE stands for Mean Squared Error. It's a measure of the difference between actual and predicted values (lower is better)."
+    if "prophet" in q:
+        return "Prophet is a time-series forecasting model from Meta that handles trends/seasonality for accurate predictions."
+    if "how to use" in q or "guide" in q:
+        return "Go to any tab, enter a stock symbol, select a date, and click the button. Results with charts and tables will appear."
+    if "download" in q:
+        return "Every chart or table in this app has a Download button (CSV for tables, PNG for charts) beneath it."
+    if "team" in q or "contact" in q:
+        return "Built by Sajid Basha (lead), Anish Kumar, Jeevan, Surya Prakash, VITS Data Science. Contact: team.vits.ds@gmail.com"
+    # Add more Q/A here
+    return "Sorry, I don't have an answer for that. Try another question!"
+
 
 # ========== Sidebar title change ===============
 st.sidebar.markdown("<h2 style='color:#2196f3;font-family:Poppins,sans-serif;font-weight:900;'>App Dashboard</h2>", unsafe_allow_html=True)
@@ -245,128 +268,184 @@ if page == "Home":
     feat3.markdown('<div class="glow-card blue" style="text-align:center;"><b>📈 Download Tables/Graphics</b></div>', unsafe_allow_html=True)
     st.markdown("---")
 
+
 # ANALYSIS PAGE --------
 if page == "Analysis":
     st.header("📊 Stock Analysis")
-    ticker = st.text_input("Stock Symbol", value="AAPL")
-    start = st.date_input("Start Date", value=date.today() - timedelta(days=90))
-    end = st.date_input("End Date", value=date.today())
+    st.info("Tip: Enter the official stock symbol (e.g., AAPL for Apple (US), TCS.NS for TCS in India). Use a valid date range. Data may be missing on weekends or market holidays.")
+
+    ticker = st.text_input("Stock Symbol", value="AAPL", help="Eg: AAPL for Apple (US), TCS.NS for Tata Consultancy (India).")
+    start = st.date_input("Start Date", value=date.today() - timedelta(days=90), help="First trading day for data (must be before End Date).")
+    end = st.date_input("End Date", value=date.today(), help="Last possible trading day for data (max: today).")
+
     st.markdown("_(For Indian stocks, use .NS, ex: TCS.NS, RELIANCE.NS.)_")
-    if st.button("Fetch Data"):
-        df = get_data_safe(ticker, start, end)
-        if df is not None and not df.empty:
-            branch = branch_selector(ticker, "analysis-branch")
-            display_company_info(ticker, branch)
-            
-            # --- Articles/news for this stock only ---
-            st.markdown(f'<h5 style="color:#27ae60;">Articles for {ticker}</h5>', unsafe_allow_html=True)
-            rich_news_panel(ticker)
+    st.caption("Click 'Fetch Data' to load company profile, news, table of prices, and chart.")
 
-            # --- Table with all metrics ---
-            st.caption(f"Table: Open, High, Low, Close, and Volume for {ticker}.")
-            st.dataframe(
-                df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']].rename(
+    if st.button("Fetch Data", help="Loads all available stock data for symbol and dates."):
+        with st.spinner("Fetching company and price data…"):
+            df = get_data_safe(ticker, start, end)
+
+            if df is None:
+                st.warning("No data was found for this selection. Please check if the symbol is correct (e.g. AAPL or TCS.NS), make sure markets were open on your selected dates, and try again.")
+            elif df.empty:
+                st.warning("Data returned empty—possibly due to a non-trading day, holiday, or wrong symbol. Try different dates or another company.")
+            else:
+                branch = branch_selector(ticker, "analysis-branch")
+                display_company_info(ticker, branch)
+                st.markdown(f'<h5 style="color:#27ae60;">Articles for {ticker}</h5>', unsafe_allow_html=True)
+                rich_news_panel(ticker)
+
+                table_data = df[['Date', 'Open', 'High', 'Low', 'Close', 'Volume']].rename(
                     columns={col: f"{ticker} {col}" for col in ['Open', 'High', 'Low', 'Close', 'Volume']}
-                ),
-                use_container_width=True
-            )
+                )
+                st.caption("Below table: All daily stock prices for your selection.")
+                st.dataframe(table_data, use_container_width=True)
 
-            # --- Closing price line plot ---
-            fig1, ax1 = plt.subplots(figsize=(7, 3.9))
-            ax1.plot(df['Date'], df['Close'], label=f"{ticker} Close", linewidth=2.2, color="#27ae60")
-            ax1.set_title(f"{ticker} Closing Price")
-            ax1.set_xlabel("Date")
-            ax1.set_ylabel("Closing Price")
-            ax1.legend()
-            st.pyplot(fig1)
-            
-            # --- Heatmap for Close prices ---
-            plot_heatmap(df, 'Close')
+                csv = table_data.to_csv(index=False).encode('utf-8')
+                st.download_button("Download Table as CSV", data=csv, file_name=f"{ticker}_analysis_table.csv", mime="text/csv")
+                st.caption("Use the button above to export all table data as a CSV file.")
 
+                fig1, ax1 = plt.subplots(figsize=(7, 3.9))
+                ax1.plot(df['Date'], df['Close'], label=f"{ticker} Close", linewidth=2.2, color="#27ae60")
+                ax1.set_title(f"{ticker} Closing Price")
+                ax1.set_xlabel("Date")
+                ax1.set_ylabel("Closing Price")
+                ax1.legend()
+                st.caption("Below: Closing Price vs Date for your selected stock.")
+                st.pyplot(fig1)
 
-
+                buf = io.BytesIO()
+                fig1.savefig(buf, format="png")
+                st.download_button(
+                    label="Download Closing Price Chart (PNG)",
+                    data=buf.getvalue(),
+                    file_name=f"{ticker}_closing_chart.png",
+                    mime="image/png"
+                )
+                plt.close(fig1)
+                plot_heatmap(df, 'Close')
 if page == "Prediction":
     st.header("🤖 ML-based Prediction")
-    ticker = st.text_input("Stock Symbol", value="AAPL", key="pred")
-    start = st.date_input("Start Date (Prediction)", value=date.today()-timedelta(days=365))
-    end = st.date_input("End Date (Prediction)", value=date.today())
-    # (No peer/competitor/sector selector here!)
-    if st.button("Run Prediction"):
-        df = get_data_safe(ticker, start, end)
-        if df is not None and len(df) > 30:
-            branch = branch_selector(ticker, "prediction-branch")
-            display_company_info(ticker, branch)
-            # ---- Regression models ----
-            features = df[['Open', 'High', 'Low', 'Volume']][:-1]
-            targets = df['Close'][1:]
-            split_idx = int(len(features) * 0.8)
-            X_train, X_test = features[:split_idx], features[split_idx:]
-            y_train, y_test = targets[:split_idx], targets[split_idx:]
-            date_test = df['Date'].iloc[split_idx+1:]
+    st.info("Tip: Enter stock symbol & a date range with at least 31 trading days for model prediction. Models shown include classic regression, ARIMA, and Prophet.")
 
-            st.subheader("Classic Regression Models")
-            models = {
-                'Linear Regression': LinearRegression(),
-                'Decision Tree': DecisionTreeRegressor(random_state=42),
-                'Random Forest': RandomForestRegressor(n_estimators=80, random_state=42)
-            }
-            for name, model in models.items():
-                model.fit(X_train, y_train)
-                y_pred = model.predict(X_test)
-                st.write(f"{name} MSE: {mean_squared_error(y_test, y_pred):.4f} | R2: {r2_score(y_test, y_pred):.4f}")
-                # --- Plot prediction vs actual ---
-                fig, ax = plt.subplots(figsize=(7, 2.5))
-                ax.plot(date_test, y_test, label="Actual", linewidth=2.2)
-                ax.plot(date_test, y_pred, label="Predicted", linestyle="--", linewidth=2)
-                ax.set_title(f"{name} | Predicted vs Actual Close")
-                ax.legend()
-                ax.set_xlabel("Date")
-                ax.set_ylabel("Close Price")
-                st.pyplot(fig)
+    ticker = st.text_input("Stock Symbol", value="AAPL", key="pred", help="Eg: AAPL, TCS.NS, RELIANCE.NS, etc.")
+    start = st.date_input("Start Date (Prediction)", value=date.today()-timedelta(days=365), help="First day for prediction (go back further for better accuracy).")
+    end = st.date_input("End Date (Prediction)", value=date.today(), help="Last day for prediction (max: today).")
 
-            # ---- ARIMA ----
-            if sm is not None:
-                st.subheader("ARIMA Forecast")
-                close_series = df['Close']
-                tlen = int(len(close_series) * 0.8)
-                try:
-                    model_arima = sm.tsa.ARIMA(close_series[:tlen], order=(5,1,0)).fit()
-                    preds = model_arima.forecast(steps=len(close_series[tlen:]))
-                    st.write(f"ARIMA MSE: {mean_squared_error(close_series[tlen:], preds):.4f}")
-                    # --- Plot ARIMA ---
-                    fig2, ax2 = plt.subplots(figsize=(7, 2.5))
-                    ax2.plot(df['Date'], close_series, label="Actual")
-                    ax2.plot(df['Date'][tlen:], preds, label="ARIMA Forecast", linestyle="--")
-                    ax2.set_title("ARIMA Forecast vs Actual")
-                    ax2.legend()
-                    ax2.set_xlabel("Date")
-                    ax2.set_ylabel("Close Price")
-                    st.pyplot(fig2)
-                except Exception as e:
-                    st.write("ARIMA error:", e)
+    st.caption("Click 'Run Prediction' to see machine learning and time series model results for your stock.")
 
-            # ---- Prophet ----
-            if Prophet is not None:
-                st.subheader("Prophet Forecast")
-                try:
-                    temp = df.copy()
-                    temp = temp.rename(columns={"Date": "ds", "Close": "y"})
-                    temp = temp.loc[:, ['ds', 'y']]
-                    temp['ds'] = pd.to_datetime(temp['ds'])
-                    temp['y'] = pd.to_numeric(temp['y'], errors='coerce')
-                    model = Prophet()
-                    model.fit(temp)
-                    period = 30
-                    future = model.make_future_dataframe(periods=period)
-                    forecast = model.predict(future)
-                    # Prophet plot (native)
-                    st.write(f"Prophet {period}-day forward forecast (blue line: forecast, black dots: actual).")
-                    fig3 = model.plot(forecast)
-                    st.pyplot(fig3)
-                except Exception as e:
-                    st.write(f"Prophet error: {e}")
+    if st.button("Run Prediction", help="Runs forecasting models (regression, ARIMA, Prophet) for the stock and dates."):
+        with st.spinner("Running stock prediction models and preparing charts…"):
+            df = get_data_safe(ticker, start, end)
+
+            if df is None or df.empty:
+                st.error("No data available for this stock or date range. Please check your symbol (try AAPL, TCS.NS), pick valid dates, and try again.")
+            elif len(df) <= 30:
+                st.error("Prediction models require at least 31 days of trading data. Please increase your date range.")
             else:
-                st.info("Prophet not installed; pip install prophet.")
+                branch = branch_selector(ticker, "prediction-branch")
+                display_company_info(ticker, branch)
+                features = df[['Open', 'High', 'Low', 'Volume']][:-1]
+                targets = df['Close'][1:]
+                split_idx = int(len(features) * 0.8)
+                X_train, X_test = features[:split_idx], features[split_idx:]
+                y_train, y_test = targets[:split_idx], targets[split_idx:]
+                date_test = df['Date'].iloc[split_idx+1:]
+
+                st.subheader("Classic Regression Models")
+                st.caption("Below: Regression models trained on historical stock prices. MSE = Mean Squared Error, R2 = goodness of fit.")
+                models = {
+                    'Linear Regression': LinearRegression(),
+                    'Decision Tree': DecisionTreeRegressor(random_state=42),
+                    'Random Forest': RandomForestRegressor(n_estimators=80, random_state=42)
+                }
+                for name, model in models.items():
+                    model.fit(X_train, y_train)
+                    y_pred = model.predict(X_test)
+                    st.write(f"{name} MSE: {mean_squared_error(y_test, y_pred):.4f} | R2: {r2_score(y_test, y_pred):.4f}")
+                    fig, ax = plt.subplots(figsize=(7, 2.5))
+                    ax.plot(date_test, y_test, label="Actual", linewidth=2.2)
+                    ax.plot(date_test, y_pred, label="Predicted", linestyle="--", linewidth=2)
+                    ax.set_title(f"{name} | Predicted vs Actual Close")
+                    ax.legend()
+                    ax.set_xlabel("Date")
+                    ax.set_ylabel("Close Price")
+                    st.caption(f"{name} - solid = actual, dashed = predicted.")
+                    st.pyplot(fig)
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format="png")
+                    st.download_button(
+                        label=f"Download {name} Prediction Chart (PNG)",
+                        data=buf.getvalue(),
+                        file_name=f"{ticker}_{name.replace(' ', '_').lower()}_prediction.png",
+                        mime="image/png"
+                    )
+                    plt.close(fig)
+
+                # ARIMA model
+                if sm is not None:
+                    st.subheader("ARIMA Forecast")
+                    st.caption("ARIMA is an advanced time series model for stock price forecasting.")
+                    close_series = df['Close']
+                    tlen = int(len(close_series) * 0.8)
+                    try:
+                        model_arima = sm.tsa.ARIMA(close_series[:tlen], order=(5,1,0)).fit()
+                        preds = model_arima.forecast(steps=len(close_series[tlen:]))
+                        st.write(f"ARIMA MSE: {mean_squared_error(close_series[tlen:], preds):.4f}")
+                        fig2, ax2 = plt.subplots(figsize=(7, 2.5))
+                        ax2.plot(df['Date'], close_series, label="Actual")
+                        ax2.plot(df['Date'][tlen:], preds, label="ARIMA Forecast", linestyle="--")
+                        ax2.set_title("ARIMA Forecast vs Actual")
+                        ax2.legend()
+                        ax2.set_xlabel("Date")
+                        ax2.set_ylabel("Close Price")
+                        st.caption("Orange = ARIMA-predicted trend. Blue = true past closing price.")
+                        st.pyplot(fig2)
+                        buf2 = io.BytesIO()
+                        fig2.savefig(buf2, format="png")
+                        st.download_button(
+                            label="Download ARIMA Chart (PNG)",
+                            data=buf2.getvalue(),
+                            file_name=f"{ticker}_arima_prediction.png",
+                            mime="image/png"
+                        )
+                        plt.close(fig2)
+                    except Exception as e:
+                        st.warning(f"ARIMA model could not run for this data: {e}")
+
+                # Prophet model
+                if Prophet is not None:
+                    st.subheader("Prophet Forecast")
+                    st.caption("Prophet is a robust ML tool for trend detection and future forecasting with confidence intervals.")
+                    try:
+                        temp = df.copy()
+                        temp = temp.rename(columns={"Date": "ds", "Close": "y"})
+                        temp = temp.loc[:, ['ds', 'y']]
+                        temp['ds'] = pd.to_datetime(temp['ds'])
+                        temp['y'] = pd.to_numeric(temp['y'], errors='coerce')
+                        model = Prophet()
+                        model.fit(temp)
+                        period = 30
+                        future = model.make_future_dataframe(periods=period)
+                        forecast = model.predict(future)
+                        st.write(f"Prophet {period}-day forward forecast (blue line: forecast, black dots: actual).")
+                        fig3 = model.plot(forecast)
+                        st.caption("Blue line = ML prediction, shaded = uncertainty, black dots = real data.")
+                        st.pyplot(fig3)
+                        buf3 = io.BytesIO()
+                        fig3.savefig(buf3, format="png")
+                        st.download_button(
+                            label="Download Prophet Chart (PNG)",
+                            data=buf3.getvalue(),
+                            file_name=f"{ticker}_prophet_prediction.png",
+                            mime="image/png"
+                        )
+                        plt.close(fig3)
+                    except Exception as e:
+                        st.warning(f"Prophet model could not run for this data: {e}")
+                else:
+                    st.info("Prophet not installed; pip install prophet.")
+               
 
 if page == "Viz":
     st.header("📈 Interactive Plotly Visualizations")
@@ -402,8 +481,6 @@ if page == "Viz":
     else:
         st.info("Set ticker and date, then click 'Fetch Data' to display visualizations.")
 
-
-
 if page == "Portfolio":
     st.header("Portfolio/Peer Comparison Widget")
     tickers = st.text_area("Enter portfolio/peer tickers (comma-separated)", value="AAPL, MSFT, GOOGL")
@@ -411,20 +488,27 @@ if page == "Portfolio":
     end = st.date_input("End Date", value=date.today())
     if st.button("Compare Portfolio"):
         ticklist = [t.strip() for t in tickers.split(',') if t.strip()]
-        result_df = pd.DataFrame()
-        for t in ticklist:
-            dft = get_data_safe(t, start, end)
-            if dft is not None and not dft.empty:
-                dft['Ticker'] = t
-                result_df = pd.concat([result_df, dft])
-        if not result_df.empty:
-            pivot = result_df.pivot_table(index='Date', columns='Ticker', values='Close')
-            pivot.columns = [str(c) for c in pivot.columns]  # flatten any possible MultiIndex
-            pivot_reset = pivot.reset_index()
-            pivot_reset.columns = [str(c) for c in pivot_reset.columns]
-            fig = px.line(pivot_reset, x='Date', y=[col for col in pivot_reset.columns if col != "Date"], title="Portfolio Performance")
-            st.plotly_chart(fig, use_container_width=True)
-            st.download_button("Export Comparison (CSV)", data=pivot.to_csv().encode(), file_name="portfolio_comparison.csv")
+        if not ticklist:
+            st.warning("Please enter at least one valid stock symbol (e.g., AAPL, MSFT, TCS.NS).")
+        else:
+            result_df = pd.DataFrame()
+            for t in ticklist:
+                dft = get_data_safe(t, start, end)
+                if dft is not None and not dft.empty:
+                    dft['Ticker'] = t
+                    result_df = pd.concat([result_df, dft])
+            if result_df.empty:
+                st.warning("No data was fetched for any of the entered stocks. Please check the tickers and date range.")
+            else:
+                pivot = result_df.pivot_table(index='Date', columns='Ticker', values='Close')
+                pivot.columns = [str(c) for c in pivot.columns]
+                pivot_reset = pivot.reset_index()
+                pivot_reset.columns = [str(c) for c in pivot_reset.columns]
+                fig = px.line(pivot_reset, x='Date', y=[col for col in pivot_reset.columns if col != "Date"], title="Portfolio Performance")
+                st.plotly_chart(fig, use_container_width=True)
+                st.download_button("Export Comparison (CSV)", data=pivot.to_csv().encode(), file_name="portfolio_comparison.csv")
+
+
 
 if page == "Distribution":
     st.header("⏳ Return Distribution & Stats")
@@ -433,24 +517,34 @@ if page == "Distribution":
     end = st.date_input("End Date", value=date.today())
     if st.button("Show Distribution"):
         df = get_data_safe(ticker, start, end)
-        if df is not None and not df.empty:
+        if df is None or df.empty:
+            st.warning("No data was loaded for this period. Please verify your symbol and try again.")
+        else:
             returns = df['Close'].pct_change().dropna()
-            mean = float(returns.mean())
-            median = float(returns.median())
-            std = float(returns.std())
-            st.write(f"Mean: {mean:.6f}, Median: {median:.6f}, Std: {std:.6f}")
-            fig, ax = plt.subplots(figsize=(6, 3.5))
-            sns.histplot(returns, kde=True, stat="density", ax=ax, color="#52BE80")
-            x = np.linspace(returns.min(), returns.max(), 100)
-            ax.plot(x, scipy.stats.norm.pdf(x, mean, std), 'r-', lw=2, label="Normal Curve")
-            ax.set_title(f'{ticker} Returns Distribution')
-            ax.legend()
-            st.pyplot(fig)
-            download_figure(fig, f"{ticker}_returns_dist")
+            if returns.empty:
+                st.info("No return data to display for this symbol and period.")
+            else:
+                mean = float(returns.mean())
+                median = float(returns.median())
+                std = float(returns.std())
+                st.write(f"Mean: {mean:.6f}, Median: {median:.6f}, Std: {std:.6f}")
+                fig, ax = plt.subplots(figsize=(6, 3.5))
+                sns.histplot(returns, kde=True, stat="density", ax=ax, color="#52BE80")
+                x = np.linspace(returns.min(), returns.max(), 100)
+                ax.plot(x, scipy.stats.norm.pdf(x, mean, std), 'r-', lw=2, label="Normal Curve")
+                ax.set_title(f'{ticker} Returns Distribution')
+                ax.legend()
+                st.pyplot(fig)
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png")
+                st.download_button(
+                    label="Download Distribution Chart (PNG)",
+                    data=buf.getvalue(),
+                    file_name=f"{ticker}_returns_distribution.png",
+                    mime="image/png"
+                )
+                plt.close(fig)
 
-# ... all your earlier code/imports remain unchanged above this point ...
-
-# ... your other imports and functions above
 
 if page == "Team":
     st.markdown("""
@@ -503,6 +597,8 @@ if page == "Contact":
         if submitted:
             st.success("Thank you! Your feedback has been recorded.")
 
+# --- Contact/project info ---
+# --- Contact/project info ---
 st.markdown("---")
 st.markdown(
     "<div style='color:#b7d7ec; font-size:1.09rem; text-align:center;'>"
@@ -512,3 +608,47 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True
 )
+
+# --- AI PROJECT ASSISTANT IN SIDEBAR (ONLY ONCE!) ---
+
+def ai_answer(question):
+    q = question.lower()
+    if "mse" in q:
+        return "MSE stands for Mean Squared Error. It's a measure of the difference between actual and predicted values (lower is better)."
+    if "prophet" in q:
+        return "Prophet is a time-series forecasting model from Meta that handles trends/seasonality for accurate predictions."
+    if "how to use" in q or "guide" in q:
+        return "Go to any tab, enter a stock symbol, select a date, and click the button. Results with charts and tables will appear."
+    if "download" in q:
+        return "Every chart or table in this app has a Download button (CSV for tables, PNG for charts) beneath it."
+    if "team" in q or "contact" in q:
+        return "Built by Sajid Basha (lead), Anish Kumar, Jeevan, Surya Prakash, VITS Data Science. Contact: team.vits.ds@gmail.com"
+    if "features" in q:
+        return "App features: stock price charts, ML predictions, peer comparison, portfolio analysis, news, all exportable as CSV/PNG, and more."
+    return "Sorry, I don't have an answer for that. Try another question!"
+
+# Load and display the Lottie animation at the top of the sidebar (not inside expander)
+lottie_json = load_lottieurl("https://assets2.lottiefiles.com/packages/lf20_gnbhifng.json")
+if lottie_json:
+    st.sidebar.markdown("")  # Ensures following is in sidebar
+    st_lottie(lottie_json, height=80, key="sidebar_bot")
+
+with st.sidebar.expander("🤖 Assistant", expanded=False):
+    st.write("**AI Project Assistant**\n\nType your question about the project or usage:")
+    user_q = st.text_input("Type or choose your doubt:", key="assistant_query", placeholder="Eg: how to use, what is mse, guide...")
+    if user_q:
+        st.markdown(f"**Q:** {user_q}")
+        st.success(ai_answer(user_q))
+    st.markdown("Or select a common question for instant help:")
+    choice = st.selectbox("Quick help", [
+        "",
+        "How to use the app?",
+        "What is MSE?",
+        "What is Prophet?", 
+        "How to download results?",
+        "Team/project info",
+        "App features"
+    ], key="assistant_choosedoubt")
+    if choice and choice != "":
+        st.markdown(f"**Q:** {choice}")
+        st.success(ai_answer(choice))
