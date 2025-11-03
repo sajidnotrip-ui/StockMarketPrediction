@@ -23,25 +23,98 @@ if 'last_stocks' in st.session_state:
     st.info(f"Hi again! Last time you analyzed: {', '.join(st.session_state['last_stocks'])}")
 # Then use st.session_state['last_metrics'] or ['last_years'] in your model/chart code!
 
+# --- SIDEBAR CHATBOT ASSISTANT (replace old code with this!) ---
+
+
+
+# --- SIMPLE RULE-BASED ASSISTANT IN SIDEBAR (FREE) ---
+# --- Efficient Rule-based Project Assistant for Sidebar (No external keys needed!) ---
+
+# --- Advanced Project FAQ Assistant (Sidebar, NO API KEY NEEDED) ---
+
+import re
+
+FAQ_ANSWERS = {
+    "tcs": "TCS.NS is Tata Consultancy Services—the top Indian IT company, traded on NSE.",
+    "reliance": "RELIANCE.NS is Reliance Industries, India's largest private sector corporation.",
+    "infy": "INFY.NS is Infosys, a major Indian IT company.",
+    "hdfc": "HDFC.NS is HDFC Bank—a leading private bank in India.",
+    "icici": "ICICI.NS is ICICI Bank, a major Indian banking and financial services company.",
+    "ibm": "IBM (International Business Machines) is a major US tech and consulting company; symbol: IBM (NYSE).",
+    "aapl": "AAPL is Apple Inc., traded on NASDAQ, one of the world's biggest tech companies.",
+    "goog": "GOOG is Google (Alphabet Inc.), traded on NASDAQ.",
+    "mse": "MSE means Mean Squared Error—a common model error metric.",
+    "mae": "MAE is Mean Absolute Error—another prediction error metric.",
+    "rmse": "RMSE means Root Mean Squared Error, a metric for model error.",
+    "arima": "ARIMA is a classic time series forecasting model using past values of the series for prediction.",
+    "prophet": "Prophet (by Meta/Facebook) is an open-source library for fast, robust time series forecasting.",
+    "linear regression": "Linear Regression is a basic ML algorithm for making predictions based on linear relationships in data.",
+    "decision tree": "A Decision Tree splits data into branches to predict future outcomes—used for classification and regression.",
+    "dataset": "We use stock price data retrieved from Yahoo Finance (via yfinance), including Open, High, Low, Close, and Volume.",
+    "team": "Team: Sajid Basha (Lead), Anish Kumar, Jeevan, Surya Prakash. Guide: Aparna, VITS DS.",
+    "members": "Sajid Basha, Anish Kumar, Jeevan, Surya Prakash, with Dr. Aparna as guide (Dept. of Data Science, VITS, 2025).",
+    "project": "StellarStocks is a stock prediction and analytics dashboard using Python, yfinance, ML models, and Streamlit.",
+    "contact": "Contact: team.vits.ds@gmail.com",
+    "mail": "Email: team.vits.ds@gmail.com",
+    "candlestick": "A Candlestick Chart is a financial chart showing the open, close, high, and low prices for a stock within a period. It helps visualize price trends and volatility.",
+    "ohlc": "OHLC is Open-High-Low-Close—a way to record stock prices and plot charts like candlestick or bar charts.",
+    "streamlit": "Streamlit is an open-source Python library for creating beautiful, interactive web apps, ideal for ML dashboards.",
+    "matplotlib": "Matplotlib is a popular Python library for making static, animated, and interactive charts and visualizations.",
+    "yfinance": "yfinance is a Python package that enables downloading historical market data from Yahoo Finance for analysis and visualization.",
+    "sidebar": "The sidebar is where you can navigate the app, ask FAQs, and access extra tools.",
+    "analysis": "The Analysis section gives you interactive charts, trends, and metrics for selected stocks.",
+    "prediction": "The Prediction section uses machine learning models (ARIMA, Linear Regression, Prophet) to forecast future stock prices."
+}
+
+SYMBOL_PATTERN = re.compile(r"^[a-z]{1,6}(\.[a-z]{2,4})?$", re.I)
+
 def ai_answer(question):
-    q = question.lower()
-    if "mse" in q:
-        return "MSE stands for Mean Squared Error. It's a measure of the difference between actual and predicted values (lower is better)."
-    if "prophet" in q:
-        return "Prophet is a time-series forecasting model from Meta that handles trends/seasonality for accurate predictions."
-    if "how to use" in q or "guide" in q:
-        return "Go to any tab, enter a stock symbol, select a date, and click the button. Results with charts and tables will appear."
-    if "download" in q:
-        return "Every chart or table in this app has a Download button (CSV for tables, PNG for charts) beneath it."
-    if "team" in q or "contact" in q:
-        return "Built by Sajid Basha (lead), Anish Kumar, Jeevan, Surya Prakash, VITS Data Science. Contact: team.vits.ds@gmail.com"
-    # Add more Q/A here
-    return "Sorry, I don't have an answer for that. Try another question!"
+    q = question.strip().lower()
+    # FAQ dictionary match
+    for key, answer in FAQ_ANSWERS.items():
+        if key in q:
+            return answer
+    # Symbol logic: detect any likely stock symbol (global)
+    if SYMBOL_PATTERN.match(q.replace(' ', '')):
+        symbol = q.strip().upper()
+        return f"'{symbol}' looks like a stock symbol. Use Analysis or Prediction section for more details."
+    # Chart types (generic detection)
+    if "chart" in q and "candle" in q:
+        return FAQ_ANSWERS["candlestick"]
+    if "chart" in q and "ohlc" in q:
+        return FAQ_ANSWERS["ohlc"]
+    # Model info
+    if "model" in q or "ml" in q or "machine learning" in q:
+        return "This dashboard uses Linear Regression, Decision Trees, ARIMA, and Prophet for stock price prediction."
+    # Section info
+    if "dashboard" in q:
+        return "The dashboard provides modern visualizations, stock analysis, predictions, and downloads using Python/ML tools."
+    if "visualization" in q:
+        return "Visualization means creating plots or charts (like candlestick, line, OHLC) to help understand stock data trends."
+    if "developer" in q or "author" in q:
+        return "Developed by Team VITS Data Science: Sajid Basha (Lead), Anish Kumar, Jeevan, Surya Prakash, with Dr. Aparna as guide."
+    # General fallback
+    return "Please ask about company symbols, project sections, chart types, ML models, metrics, or team info!"
+
+st.sidebar.markdown("### 🤖 Project FAQ Assistant")
+user_q = st.sidebar.text_input("Ask about the project, dashboard, symbols, models, or charts…")
+if user_q:
+    st.sidebar.info(ai_answer(user_q))
+st.sidebar.markdown("---")
+
+
+# ---- End AI assistant block. Place your rest of sidebar controls BELOW here ----
+
+# Example of more sidebar UI (keep your page section controls after the assistant)
+st.sidebar.markdown("<h2 style='color:#2196f3;font-family:Poppins,sans-serif;font-weight:900;'>App Dashboard</h2>", unsafe_allow_html=True)
+st.sidebar.markdown("Select a section below:")
+# (all your navigation, radio, etc.)
+
+
+
 
 
 # ========== Sidebar title change ===============
-st.sidebar.markdown("<h2 style='color:#2196f3;font-family:Poppins,sans-serif;font-weight:900;'>App Dashboard</h2>", unsafe_allow_html=True)
-st.sidebar.markdown("Select a section below:")
 
 # --- All the rest as before ---
 try:
@@ -609,46 +682,5 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- AI PROJECT ASSISTANT IN SIDEBAR (ONLY ONCE!) ---
+# --- End of file ---
 
-def ai_answer(question):
-    q = question.lower()
-    if "mse" in q:
-        return "MSE stands for Mean Squared Error. It's a measure of the difference between actual and predicted values (lower is better)."
-    if "prophet" in q:
-        return "Prophet is a time-series forecasting model from Meta that handles trends/seasonality for accurate predictions."
-    if "how to use" in q or "guide" in q:
-        return "Go to any tab, enter a stock symbol, select a date, and click the button. Results with charts and tables will appear."
-    if "download" in q:
-        return "Every chart or table in this app has a Download button (CSV for tables, PNG for charts) beneath it."
-    if "team" in q or "contact" in q:
-        return "Built by Sajid Basha (lead), Anish Kumar, Jeevan, Surya Prakash, VITS Data Science. Contact: team.vits.ds@gmail.com"
-    if "features" in q:
-        return "App features: stock price charts, ML predictions, peer comparison, portfolio analysis, news, all exportable as CSV/PNG, and more."
-    return "Sorry, I don't have an answer for that. Try another question!"
-
-# Load and display the Lottie animation at the top of the sidebar (not inside expander)
-lottie_json = load_lottieurl("https://assets2.lottiefiles.com/packages/lf20_gnbhifng.json")
-if lottie_json:
-    st.sidebar.markdown("")  # Ensures following is in sidebar
-    st_lottie(lottie_json, height=80, key="sidebar_bot")
-
-with st.sidebar.expander("🤖 Assistant", expanded=False):
-    st.write("**AI Project Assistant**\n\nType your question about the project or usage:")
-    user_q = st.text_input("Type or choose your doubt:", key="assistant_query", placeholder="Eg: how to use, what is mse, guide...")
-    if user_q:
-        st.markdown(f"**Q:** {user_q}")
-        st.success(ai_answer(user_q))
-    st.markdown("Or select a common question for instant help:")
-    choice = st.selectbox("Quick help", [
-        "",
-        "How to use the app?",
-        "What is MSE?",
-        "What is Prophet?", 
-        "How to download results?",
-        "Team/project info",
-        "App features"
-    ], key="assistant_choosedoubt")
-    if choice and choice != "":
-        st.markdown(f"**Q:** {choice}")
-        st.success(ai_answer(choice))
