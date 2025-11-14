@@ -942,40 +942,7 @@ Always consult with a qualified financial advisor before making any investment d
     """, unsafe_allow_html=True)
 
 
-# ============= CONTACT PAGE =============
-if page == "Contact":
-    st.header("✉️ Contact / Feedback")
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        with st.form("feedback_form"):
-            name = st.text_input("Your Name *")
-            email = st.text_input("Your Email *")
-            category = st.selectbox("Category", ["General Inquiry", "Bug Report", "Feature Request", "Collaboration"])
-            msg = st.text_area("Your Message *", height=150)
-            submitted = st.form_submit_button("📤 Submit Feedback")
-            
-            if submitted:
-                if name and email and msg:
-                    st.success("✅ Thank you! Your feedback has been recorded. We'll get back to you soon!")
-                    st.balloons()
-                else:
-                    st.error("⚠️ Please fill in all required fields (*)")
-    
-    with col2:
-        st.markdown("""
-        <div class="glow-card blue">
-            <h4 style='color:#2196f3;'>Contact Information</h4>
-            <p style='line-height:2;'>
-            📧 <b>Email:</b><br>team.vits.ds@gmail.com<br><br>
-            🏛️ <b>Institution:</b><br>VITS Data Science Dept.<br>Hyderabad, India<br><br>
-            🔗 <b>Connect:</b><br>
-            GitHub: StellarStocks<br>
-            LinkedIn: Team VITS DS
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+
 
 # ============= CONTACT PAGE =============
 if page == "Contact":
@@ -986,99 +953,59 @@ if page == "Contact":
     with col1:
         st.subheader("Send us your feedback")
         
-        with st.form("contact_feedback_form", clear_on_submit=True):
+        with st.form("contact_feedback_form"):
             name = st.text_input("Your Name *", placeholder="Enter your name", key="contact_name_field")
             email = st.text_input("Your Email *", placeholder="Enter your email", key="contact_email_field")
-            category = st.selectbox(
-                "Category *", 
-                ["General Inquiry", "Bug Report", "Feature Request", "Collaboration", "Other"],
-                key="contact_category_field"
-            )
-            msg = st.text_area(
-                "Your Message *", 
-                height=150,
-                placeholder="Tell us what you think...",
-                key="contact_msg_field"
-            )
-            
+            category = st.selectbox("Category *", ["General Inquiry", "Bug Report", "Feature Request", "Collaboration", "Other"], key="contact_category_field")
+            msg = st.text_area("Your Message *", height=150, placeholder="Tell us what you think...", key="contact_msg_field")
             submitted = st.form_submit_button("📤 Submit Feedback", use_container_width=True)
-            
-            if submitted:
-                if name and email and msg:
-                    st.success("✅ Thank you! Your feedback has been recorded. We'll get back to you soon!")
-                    st.balloons()
-                else:
-                    st.error("⚠️ Please fill in all required fields (*)")
+        
+        if submitted:
+            if name and email and msg:
+                st.success("✅ Thank you! Your feedback has been recorded. We'll get back to you soon!", icon="✅")
+                st.balloons()
+            else:
+                st.error("⚠️ Please fill in all required fields (*)")
     
     with col2:
         st.subheader("📧 Get in Touch")
-        
         st.markdown("""
-        <div style="background: #16191c; border-radius: 14px; border: 2px solid #2196f3; 
-                    box-shadow: 0 0 16px 3px #2196f3a0; padding: 20px; margin-bottom: 15px;">
-            <p style='color:#2196f3; font-size:1.1rem; font-weight:bold; margin-bottom:15px;'>📧 Email</p>
-            <p style='color:#b7d7ec; font-size:0.95rem;'>
-            team.vits.ds@gmail.com
-            </p>
-        </div>
-        
-        <div style="background: #16191c; border-radius: 14px; border: 2px solid #27ae60; 
-                    box-shadow: 0 0 16px 3px #27ae6098; padding: 20px; margin-bottom: 15px;">
-            <p style='color:#27ae60; font-size:1.1rem; font-weight:bold; margin-bottom:15px;'>🏛️ Institution</p>
-            <p style='color:#b7d7ec; font-size:0.95rem;'>
-            Vignan Institute of Technology & Science (VITS)<br>
-            <b>Department:</b> Data Science<br>
-            <b>Location:</b> Hyderabad, India
-            </p>
-        </div>
-        
-        <div style="background: #16191c; border-radius: 14px; border: 2px solid #2196f3; 
-                    box-shadow: 0 0 16px 3px #2196f3a0; padding: 20px;">
-            <p style='color:#2196f3; font-size:1.1rem; font-weight:bold; margin-bottom:15px;'>👥 Team Lead</p>
-            <p style='color:#b7d7ec; font-size:0.95rem;'>
-            <b>Sajid Basha</b><br>
-            Lead Developer
-            </p>
-        </div>
+<div style="background: #16191c; border-radius: 14px; border: 2px solid #2196f3; box-shadow: 0 0 16px 3px #2196f3a0; padding: 20px; margin-bottom: 15px;">
+<p style='color:#2196f3; font-size:1.1rem; font-weight:bold; margin-bottom:15px;'>📧 Email</p>
+<p style='color:#b7d7ec; font-size:0.95rem;'>team.vits.ds@gmail.com</p>
+</div>
+<div style="background: #16191c; border-radius: 14px; border: 2px solid #27ae60; box-shadow: 0 0 16px 3px #27ae6098; padding: 20px; margin-bottom: 15px;">
+<p style='color:#27ae60; font-size:1.1rem; font-weight:bold; margin-bottom:15px;'>🏛️ Institution</p>
+<p style='color:#b7d7ec; font-size:0.95rem;'>Vignan Institute of Technology & Science (VITS)<br><b>Department:</b> Data Science<br><b>Location:</b> Hyderabad, India</p>
+</div>
+<div style="background: #16191c; border-radius: 14px; border: 2px solid #2196f3; box-shadow: 0 0 16px 3px #2196f3a0; padding: 20px;">
+<p style='color:#2196f3; font-size:1.1rem; font-weight:bold; margin-bottom:15px;'>👥 Team Lead</p>
+<p style='color:#b7d7ec; font-size:0.95rem;'><b>Sajid Basha</b><br>Lead Developer</p>
+</div>
         """, unsafe_allow_html=True)
     
     st.divider()
-    
     st.subheader("🤝 Meet The Team")
-    
     team_info = """
-    **Sajid Basha** - Lead Developer & ML Engineer
-    
-    **Anish Kumar** - Co-Lead & Backend Developer
-    
-    **Jeevan** - UI/UX Designer & Frontend Developer
-    
-    **Surya Prakash** - QA Engineer & Documentation Specialist
-    
-    **Dr. Aparna** - Project Guide, Department of Data Science, VITS
+**Sajid Basha** - Lead Developer & ML Engineer
+
+**Anish Kumar** - Co-Lead & Backend Developer
+
+**Jeevan** - UI/UX Designer & Frontend Developer
+
+**Surya Prakash** - QA Engineer & Documentation Specialist
+
+**Dr. Aparna** - Project Guide, Department of Data Science, VITS
     """
-    
     st.markdown(team_info)
-    
     st.divider()
-    
     st.info("""
-    💡 **Tips for reporting issues:**
-    - Be specific about what happened
-    - Include the stock symbol you were using
-    - Mention what page the issue occurred on
-    - If possible, share screenshots
+💡 **Tips for reporting issues:**
+- Be specific about what happened
+- Include the stock symbol you were using
+- Mention what page the issue occurred on
+- If possible, share screenshots
     """)
 
-
-# ============= FOOTER =============
 st.markdown("---")
-st.markdown(
-    "<div style='color:#b7d7ec; font-size:1.09rem; text-align:center; padding:20px;'>"
-    "<b>StellarStocks Predictor</b> © 2025 Team VITS Data Science<br>"
-    "Developed for advanced, interactive stock analysis and forecasting with modern ML tools.<br>"
-    "For academic, analytical, and professional demonstration purposes.<br>"
-    "<span style='font-size:1rem'>📧 Contact: <i>team.vits.ds@gmail.com</i></span>"
-    "</div>",
-    unsafe_allow_html=True
-)
+st.markdown("<div style='color:#b7d7ec; font-size:1.09rem; text-align:center; padding:20px;'><b>StellarStocks Predictor</b> © 2025 Team VITS Data Science<br>Developed for advanced, interactive stock analysis and forecasting with modern ML tools.<br>For academic, analytical, and professional demonstration purposes.<br><span style='font-size:1rem'>📧 Contact: <i>team.vits.ds@gmail.com</i></span></div>", unsafe_allow_html=True)
